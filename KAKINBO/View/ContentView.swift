@@ -1,35 +1,37 @@
-//
-//  ContentView.swift
-//  KAKINBO
-//
-//  Created by Apple on 2025/01/31.
-//
-
 import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    // SwiftData の ModelContext 参照（アイテムの追加/削除に必要）
+    /// SwiftUI で ModelContext を取り出す
     @Environment(\.modelContext) private var modelContext
     
-    // SwiftData から Item 一覧を取得
-    @Query private var items: [Item]
+    /// MVVM の ViewModel
+    @StateObject private var viewModel: ContentViewModel
     
-    // ボタンで使用する金額のリスト
+    /// 入力ボタンで使用する金額一覧
     private let amounts = [750, 1500, 3000, 7500, 15000, 150, 300]
-
-    var body: some View {
-        // 金額の計算：リスト(items)から都度合計を求める
-        let totalSum = items.map(\.amount).reduce(0, +)
+    
+    // MARK: - イニシャライザ
+    init() {
+        // SwiftData用の ModelContainer を作り、そこから ModelContext を生成
+        let container = try! ModelContainer(for: Item.self)
+        let tempContext = ModelContext(container)
         
-        // 「今日の」アイテムだけをフィルタして合計
-        let todaySum = items
-            .filter { Calendar.current.isDateInToday($0.timestamp) }
-            .map(\.amount)
-            .reduce(0, +)
+        // ここでは「仮の」ではなく、そのまま使える context で Repository を作成
+        let repository = SwiftDataItemRepository(context: tempContext)
+        
+        // @StateObject にセットする
+        _viewModel = StateObject(wrappedValue: ContentViewModel(repository: repository))
+    }
+    
+    var body: some View {
+        // ViewModel が公開しているプロパティを取得
+        let totalSum = viewModel.totalSum
+        let todaySum = viewModel.todaySum
         
         NavigationView {
             VStack(spacing: 0) {
+                
                 // --- 1) TOTAL表示部分 ---
                 ZStack {
                     Color.green
@@ -52,7 +54,7 @@ struct ContentView: View {
                     .foregroundColor(.black)
                 }
                 .frame(height: 120)
-
+                
                 // --- 2) TODAY表示部分 ---
                 ZStack {
                     Color.green
@@ -75,10 +77,10 @@ struct ContentView: View {
                 }
                 .frame(height: 100)
                 .overlay(
-                    // 左右の矢印ボタン（未実装部分）
+                    // 左右の矢印ボタン（日付操作など）
                     HStack {
                         Button(action: {
-                            // 左矢印ボタンの処理（例: 日付を前日に変更するなど）
+                            // 左矢印ボタンの処理
                         }) {
                             Image(systemName: "chevron.left")
                                 .font(.title2)
@@ -86,7 +88,7 @@ struct ContentView: View {
                         }
                         Spacer()
                         Button(action: {
-                            // 右矢印ボタンの処理（例: 日付を翌日に変更するなど）
+                            // 右矢印ボタンの処理
                         }) {
                             Image(systemName: "chevron.right")
                                 .font(.title2)
@@ -96,17 +98,14 @@ struct ContentView: View {
                     .padding(.horizontal, 16),
                     alignment: .center
                 )
-
+                
                 // --- 3) 金額入力ボタン群 ---
                 let columns = Array(repeating: GridItem(.flexible()), count: 3)
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(amounts, id: \.self) { amount in
                         Button(action: {
-                            // 新しい Item を作成→modelContext.insert で保存
-                            let newItem = Item(timestamp: Date(), amount: amount)
-                            modelContext.insert(newItem)
-                            // SwiftData は自動保存が基本ですが、必要に応じて手動 save() も可
-                            // try? modelContext.save()
+                            // ViewModel経由で Item 追加
+                            viewModel.addItem(amount: amount)
                         }) {
                             Text("\(amount)")
                                 .font(.title3)
@@ -120,7 +119,7 @@ struct ContentView: View {
                 .padding()
                 
                 Spacer()
-
+                
                 // --- 4) 下部ナビゲーションボタン ---
                 HStack {
                     Button("CALENDAR") {
@@ -157,11 +156,18 @@ struct ContentView: View {
             .navigationTitle("KA KIN BO")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .onAppear {
+            // 必要に応じて実際の modelContext を再注入したい場合は、
+            // ViewModel 内に repository を置き換えるメソッドを用意するなどの対応を行う。
+            // 例:
+            // viewModel.replaceRepository(SwiftDataItemRepository(context: modelContext))
+        }
     }
 }
 
 // MARK: - プレビュー
 #Preview {
+    // プレビュー用に in-memory Container を利用
     ContentView()
         .modelContainer(for: Item.self, inMemory: true)
 }
