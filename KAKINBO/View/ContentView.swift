@@ -1,3 +1,14 @@
+//
+//  ItemsStore.swift
+//  KAKINBO
+//
+//  Created by Apple on 2025/01/31.
+//
+//  ContentView の役割
+//  全体レイアウトの管理
+//  データの取得と状態管理
+
+
 import SwiftUI
 import SwiftData
 
@@ -10,6 +21,10 @@ struct ContentView: View {
     // index順にソートして取得 (0番→1番→…)
     @Query(sort: \Preset.index, order: .forward)
     private var presets: [Preset]
+    
+    // 長押しで編集する対象の Preset と、入力用のテキストを保持
+    @State private var editingPreset: Preset? = nil
+    @State private var editedValue: String = ""
     
     var body: some View {
         NavigationView {
@@ -28,9 +43,18 @@ struct ContentView: View {
                     }
                 )
 
-                // もしPresetが空ならデフォルトを挿入しておく
-                // onAppear あるいは .task などで1回だけ実行する
-                mainContent
+                // AmountGridView に通常タップと長押しの処理を渡す
+                AmountGridView(amounts: presets, onTap: { preset in
+                    guard let amount = preset.amount else {
+                        print("空白ボタンが押されました")
+                        return
+                    }
+                    itemsStore.addItem(amount: amount)
+                }, onLongPress: { preset in
+                    // 長押し時は編集対象を設定し、現在の値を入力用テキストに反映
+                    editingPreset = preset
+                    editedValue = preset.amount.map { String($0) } ?? ""
+                })
                 
                 Spacer()
                 
@@ -48,23 +72,33 @@ struct ContentView: View {
                 }
             }
         }
-    }
-    
-    // メインコンテンツ部分 (AmountGridView など)
-    private var mainContent: some View {
-        // 9個のプリセットを表示（空白は amount=nil ）
-        AmountGridView(amounts: presets) { preset in
-            //ここからクロージャ本体
-            guard let amount = preset.amount else {
-                // amount=nil の空白ボタンを押した場合の仮実装
-                // 今後、金額入力UIを実装する想定
-                print("空白ボタンが押されました（今後実装予定）")
-                return
+        // 編集用のシート表示
+        //isPresentedがtrueかfalseかを判定
+        .sheet(isPresented: Binding<Bool>(
+            //editingPreset が nil でない場合は true、nil であれば false を返します
+            get: { editingPreset != nil },
+            //.sheet の表示状態が変更されると、SwiftUI はその新しい状態（true または false）をこの set クロージャに渡します。
+            set: { newValue in
+                if !newValue { editingPreset = nil }
             }
-            // 金額がある場合はItemを追加
-            itemsStore.addItem(amount: amount)
+        )) {
+            EditPresetSheet(editedValue: $editedValue, onCancel: {
+                editingPreset = nil
+            }, onSave: {
+                // 入力値のトリム
+                let trimmed = editedValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                // もし"0"ならnilとする
+                if trimmed == "0" {
+                    editingPreset?.amount = nil
+                } else if let intValue = Int(trimmed), (2...6).contains(trimmed.count) {
+                    editingPreset?.amount = intValue
+                }
+                // 保存後はシートを閉じる
+                editingPreset = nil
+            })
         }
     }
+    
     
     /// 初回起動(もしくは一度も作成されていない)時に、デフォルトデータを作る
     private func setupDefaultPresets() {

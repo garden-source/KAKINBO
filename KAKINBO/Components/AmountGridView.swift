@@ -14,6 +14,9 @@ struct AmountGridView: View {
     /// ボタンが押されたときに呼ばれる
     ///   - 空白ボタンも押せるようにしたいので、Presetごと渡す
     var onTap: (Preset) -> Void
+    
+    /// 長押し時のアクション（全てのボタンで有効）
+    var onLongPress: (Preset) -> Void
 
     var body: some View {
         let columns = Array(repeating: GridItem(.flexible()), count: 3)
@@ -24,7 +27,6 @@ struct AmountGridView: View {
                 Button(action: {
                     onTap(preset)
                 }) {
-                    // amount が存在する場合は金額を表示、nilの場合は「長押しで\nボタン追加」と表示
                     if let amount = preset.amount {
                         Text("\(amount)")
                             .font(.title3)
@@ -32,7 +34,7 @@ struct AmountGridView: View {
                     } else {
                         Text("長押しで\nボタン追加")
                             .multilineTextAlignment(.center)
-                            .font(.footnote) // 通常の金額表示より小さいフォント
+                            .font(.footnote)
                             .foregroundColor(.gray)
                             .frame(maxWidth: .infinity, minHeight: 60)
                     }
@@ -40,6 +42,11 @@ struct AmountGridView: View {
                 .background(Color.gray.opacity(0.2))
                 .cornerRadius(8)
                 .foregroundColor(.black)
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+                        onLongPress(preset)
+                    }
+                )
             }
         }
         .padding()
@@ -54,8 +61,10 @@ struct AmountGridView_Previews: PreviewProvider {
             .init(index: 2, amount: nil) // 空白
         ]
         
-        AmountGridView(amounts: dummyPresets) { preset in
+        AmountGridView(amounts: dummyPresets, onTap: { preset in
             print("Tapped index=\(preset.index), amount=\(String(describing: preset.amount))")
-        }
+        }, onLongPress: { preset in
+            print("Long press on preset index \(preset.index)")
+        })
     }
 }

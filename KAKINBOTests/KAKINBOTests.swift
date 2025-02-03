@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import KAKINBO
 
@@ -97,7 +98,32 @@ final class KAKINBOTests: XCTestCase {
         itemsStore.redo()
         XCTAssertEqual(itemsStore.todaySum, 4000, "redoは無効となり、合計は変更されない必要があります。")
     }
-
     
-    
+    func testSheetBindingBehavior() {
+        // editingPreset を模擬する変数（nilならシート非表示）
+        var editingPreset: Preset? = nil
+        
+        // ContentView 内で使われるシートの Binding を定義
+        let binding = Binding<Bool>(
+            get: { editingPreset != nil },
+            set: { newValue in
+                if !newValue {
+                    editingPreset = nil
+                }
+            }
+        )
+        
+        // 初期状態: editingPreset は nil なので binding.get() は false
+        XCTAssertFalse(binding.wrappedValue, "初期状態ではシートは非表示 (false) であるべき")
+        
+        // 編集対象が設定された場合
+        editingPreset = Preset(index: 0, amount: 1500)
+        // get クロージャは true を返すはず
+        XCTAssertTrue(binding.wrappedValue, "editingPreset に値があればシートは表示状態 (true) になる")
+        
+        // シートを閉じる操作を模擬（set に false を代入）
+        binding.wrappedValue = false
+        // このとき、set クロージャ内で editingPreset が nil に更新されるはず
+        XCTAssertNil(editingPreset, "シートが閉じられると editingPreset は nil になる")
+    }
 }
