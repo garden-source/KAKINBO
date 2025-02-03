@@ -15,7 +15,6 @@ struct KAKINBOApp: App {
             Item.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
@@ -23,9 +22,13 @@ struct KAKINBOApp: App {
         }
     }()
 
+    // グローバルな状態管理（唯一のソース・オブ・トゥルース）
+    @StateObject private var itemsStore = ItemsStore()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(itemsStore)
         }
         .modelContainer(sharedModelContainer)
     }
