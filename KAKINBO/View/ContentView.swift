@@ -1,57 +1,58 @@
-//
-//  ItemsStore.swift
-//  KAKINBO
-//
-//  Created by Apple on 2025/01/31.
-//
-//  ContentView の役割
-//  全体レイアウトの管理
-//  データの取得と状態管理
-
-
+// KAKINBO/View/ContentView.swift
 import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @EnvironmentObject var itemsStore: ItemsStore
-    
-    // SwiftDataのmodelContextを使うためにEnvironmentを取得
+    // SwiftDataのmodelContextを使用
     @Environment(\.modelContext) private var context
     
-    // index順にソートして取得 (0番→1番→…)
+    // 削除されていないアイテムをクエリで取得
+    @Query(filter: #Predicate<Item> { !$0.isDeleted })
+    private var items: [Item]
+    
+    // プリセット値はそのまま使用
     @Query(sort: \Preset.index, order: .forward)
     private var presets: [Preset]
     
-    // 長押しで編集する対象の Preset と、入力用のテキストを保持
+    // 編集用の状態
     @State private var editingPreset: Preset? = nil
     @State private var editedValue: String = ""
+    
+    // 計算プロパティで合計値を取得
+    var totalSum: Int {
+        items.map { $0.amount }.reduce(0, +)
+    }
+    
+    var todaySum: Int {
+        items.filter { Calendar.current.isDateInToday($0.timestamp) }
+            .map { $0.amount }.reduce(0, +)
+    }
     
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 // TOTAL 表示
-                TotalView(total: itemsStore.totalSum)
+                TotalView(total: totalSum)
                 
                 // TODAY 表示 (undo/redoボタン付き)
                 TodayView(
-                    todaySum: itemsStore.todaySum,
+                    todaySum: todaySum,
                     onPrevious: {
-                        itemsStore.undo()
+                        undo()
                     },
                     onNext: {
-                        itemsStore.redo()
+                        redo()
                     }
                 )
 
-                // AmountGridView に通常タップと長押しの処理を渡す
+                // AmountGridView
                 AmountGridView(amounts: presets, onTap: { preset in
                     guard let amount = preset.amount else {
                         print("空白ボタンが押されました")
                         return
                     }
-                    itemsStore.addItem(amount: amount)
+                    addItem(amount: amount)
                 }, onLongPress: { preset in
-                    // 長押し時は編集対象を設定し、現在の値を入力用テキストに反映
                     editingPreset = preset
                     editedValue = preset.amount.map { String($0) } ?? ""
                 })
@@ -66,18 +67,14 @@ struct ContentView: View {
             .navigationTitle("KA KIN BO")
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                // View出現時などにチェックし、未作成の場合は挿入
                 if presets.isEmpty {
                     setupDefaultPresets()
                 }
             }
         }
         // 編集用のシート表示
-        //isPresentedがtrueかfalseかを判定
         .sheet(isPresented: Binding<Bool>(
-            //editingPreset が nil でない場合は true、nil であれば false を返します
             get: { editingPreset != nil },
-            //.sheet の表示状態が変更されると、SwiftUI はその新しい状態（true または false）をこの set クロージャに渡します。
             set: { newValue in
                 if !newValue { editingPreset = nil }
             }
@@ -85,39 +82,78 @@ struct ContentView: View {
             EditPresetSheet(editedValue: $editedValue, onCancel: {
                 editingPreset = nil
             }, onSave: {
-                // 入力値のトリム
                 let trimmed = editedValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                // もし"0"ならnilとする
                 if trimmed == "0" {
                     editingPreset?.amount = nil
                 } else if let intValue = Int(trimmed), (2...6).contains(trimmed.count) {
                     editingPreset?.amount = intValue
                 }
-                // 保存後はシートを閉じる
                 editingPreset = nil
             })
         }
     }
     
+    // アイテム追加関数
+    private func addItem(amount: Int) {
+        // 新規追加時は復活させたアイテムをすべて完全に削除（redo履歴クリア）
+        clearRedoHistory()
+        
+        let newItem = Item(timestamp: Date(), amount: amount)
+        context.insert(newItem)
+    }
     
-    /// 初回起動(もしくは一度も作成されていない)時に、デフォルトデータを作る
+    // Undo操作
+    private func undo() {
+        if let lastItem = Item.fetchLastTodayItem(context: context) {
+            lastItem.isDeleted = true
+        }
+    }
+    
+    // Redo操作
+    private func redo() {
+        if let lastDeletedItem = Item.fetchLastDeletedItem(context: context) {
+            lastDeletedItem.isDeleted = false
+        }
+    }
+    
+    // 復活履歴をクリア
+    private func clearRedoHistory() {
+        let startOfDay = Calendar.current.startOfDay(for: Date())
+        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        let predicate = #Predicate<Item> {
+            $0.isDeleted &&
+            $0.timestamp >= startOfDay &&
+            $0.timestamp < endOfDay
+        }
+        
+        let descriptor = FetchDescriptor<Item>(predicate: predicate)
+        
+        do {
+            let deletedItems = try context.fetch(descriptor)
+            for item in deletedItems {
+                context.delete(item)
+            }
+        } catch {
+            print("Error clearing redo history: \(error)")
+        }
+    }
+    
+    // プリセット初期化
     private func setupDefaultPresets() {
         let defaultAmounts: [Int?] = [
             750, 1500, 3000, 7500, 15000, 150, 300,
-            nil,  // 8番目 ボタン（空白）
-            nil   // 9番目 ボタン（空白）
+            nil, nil
         ]
         
         for (idx, value) in defaultAmounts.enumerated() {
             let preset = Preset(index: idx, amount: value)
             context.insert(preset)
         }
-        // ここでcontextが自動的に保存される（トランザクション管理）。
-        // 必要に応じて手動保存することも可能。
     }
 }
 
 #Preview {
     ContentView()
-        .environmentObject(ItemsStore())
+        .modelContainer(for: [Item.self, Preset.self], inMemory: true)
 }

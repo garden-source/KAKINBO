@@ -1,10 +1,4 @@
-//
-//  KAKINBOApp.swift
-//  KAKINBO
-//
-//  Created by Apple on 2025/01/31.
-//
-
+// KAKINBO/KAKINBOApp.swift
 import SwiftUI
 import SwiftData
 
@@ -23,13 +17,9 @@ struct KAKINBOApp: App {
         }
     }()
 
-    // グローバルな状態管理（唯一のソース・オブ・トゥルース）
-    @StateObject private var itemsStore = ItemsStore()
-    
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(itemsStore)
         }
         .modelContainer(sharedModelContainer)
     }
