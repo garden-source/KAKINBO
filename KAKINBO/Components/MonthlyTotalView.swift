@@ -1,24 +1,24 @@
 //
-//  TotalView.swift
+//  MonthlyTotalView.swift
 //  KAKINBO
 //
-//  Created by Apple on 2025/01/31.
+//  Created by Apple on 2025/03/03.
 //
 
 import SwiftUI
 
-struct TotalView: View {
-    // 値を入れないのであれば自動でイニシャライザ
-    let total: Int
+struct MonthlyTotalView: View {
+    // 月間合計金額
+    let monthlyTotal: Int
 
     var body: some View {
         ZStack {
             Color.green
                 .ignoresSafeArea(edges: .horizontal)
             VStack {
-                // TOTALを左に配置
+                // MONTHを左に配置
                 HStack {
-                    Text("TOTAL")
+                    Text("MONTH")
                         .font(.headline)
                         .padding(.top, 8)
                     
@@ -26,13 +26,12 @@ struct TotalView: View {
                 }
                 .padding(.horizontal, 16)
                 
-                // 金額は中央に大きく表示
-                Text("¥\(total)")
-                    .font(.largeTitle)
-                    .bold()
+                // 金額は中央に表示
+                Text("¥ \(monthlyTotal)")
+                    .font(.title)
                     .padding(.top, 4)
                 
-                // YENを右側に
+                // YENを右側に配置
                 HStack {
                     Spacer()
                     Text("YEN")
@@ -43,12 +42,12 @@ struct TotalView: View {
             }
             .foregroundColor(.black)
         }
-        .frame(height: 120)
+        .frame(height: 100)
     }
 }
 
-struct TotalView_Previews: PreviewProvider {
+struct MonthlyTotalView_Previews: PreviewProvider {
     static var previews: some View {
-        TotalView(total: 123456)
+        MonthlyTotalView(monthlyTotal: 156000)
     }
 }

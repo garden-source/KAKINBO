@@ -8,33 +8,54 @@
 import SwiftUI
 
 struct BottomNavigationView: View {
-    var onCalendar: () -> Void = {}
-    var onLevel3: () -> Void = {}
-    var onMode2: () -> Void = {}
-
+    // 選択されているタブを追跡
+    @Binding var selectedTab: Int
+    
+    // 現在のモード（1または2）
+    @Binding var currentMode: Int
+    
     var body: some View {
         HStack {
-            Button("CALENDAR", action: onCalendar)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(8)
+            // 左：MODEボタン
+            Button(action: {
+                // モードを切り替え (1 <-> 2)
+                currentMode = currentMode == 1 ? 2 : 1
+            }) {
+                Text("MODE\(currentMode)")
+                    .padding()
+                    .frame(minWidth: 100)
+                    .background(Color.green)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+            }
             
             Spacer()
             
-            Button("LEVEL3", action: onLevel3)
-                .padding()
-                .background(Color.gray)
-                .foregroundColor(.black)
-                .cornerRadius(8)
+            // 中央：HOMEボタン
+            Button(action: {
+                selectedTab = 0
+            }) {
+                Text("HOME")
+                    .padding()
+                    .frame(minWidth: 100)
+                    .background(selectedTab == 0 ? Color.blue : Color.gray)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+            }
             
             Spacer()
             
-            Button("To Mode2", action: onMode2)
-                .padding()
-                .background(Color.green)
-                .foregroundColor(.white)
-                .cornerRadius(8)
+            // 右：CALENDARボタン
+            Button(action: {
+                selectedTab = 1
+            }) {
+                Text("CALENDAR")
+                    .padding()
+                    .frame(minWidth: 100)
+                    .background(selectedTab == 1 ? Color.blue : Color.gray)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
@@ -42,7 +63,10 @@ struct BottomNavigationView: View {
 }
 
 struct BottomNavigationView_Previews: PreviewProvider {
+    @State static var selectedTab = 0
+    @State static var currentMode = 1
+    
     static var previews: some View {
-        BottomNavigationView()
+        BottomNavigationView(selectedTab: $selectedTab, currentMode: $currentMode)
     }
 }
