@@ -28,7 +28,21 @@ class KAKINBOViewModel: ObservableObject {
     }
     
     init() {
-        // 空のイニシャライザ - contextは後から設定
+        // アラート設定のデフォルト値を設定
+        self._alertLevel1 = Published(initialValue: UserDefaults.standard.integer(forKey: "alertLevel1"))
+        self._alertLevel2 = Published(initialValue: UserDefaults.standard.integer(forKey: "alertLevel2"))
+        self._alertLevel3 = Published(initialValue: UserDefaults.standard.integer(forKey: "alertLevel3"))
+        
+        // デフォルト値が0の場合は初期値を設定
+        if alertLevel1 == 0 {
+            alertLevel1 = 15000
+        }
+        if alertLevel2 == 0 {
+            alertLevel2 = 50000
+        }
+        if alertLevel3 == 0 {
+            alertLevel3 = 100000
+        }
     }
     
     func setModelContext(_ context: ModelContext) {
@@ -254,4 +268,59 @@ class KAKINBOViewModel: ObservableObject {
         guard let context = self.context else { return false }
         return Item.fetchLastDeletedItem(context: context) != nil
     }
+    
+    // アラート関連のプロパティをUserDefaultsに保存/読み込み
+    @Published var alertLevel1: Int {
+        didSet {
+            UserDefaults.standard.set(alertLevel1, forKey: "alertLevel1")
+        }
+    }
+    
+    @Published var alertLevel2: Int {
+        didSet {
+            UserDefaults.standard.set(alertLevel2, forKey: "alertLevel2")
+        }
+    }
+    
+    @Published var alertLevel3: Int {
+        didSet {
+            UserDefaults.standard.set(alertLevel3, forKey: "alertLevel3")
+        }
+    }
+    
+    // アラートメッセージとレベルを保持する構造体
+    struct AlertInfo {
+        let message: String
+        let level: Int  // 1, 2, 3
+    }
+    
+    // 月間合計に基づいたアラート情報を取得（モード2のとき使用）
+    func getAlertInfo() -> AlertInfo? {
+        // 月間合計が設定値を超えているか確認
+        if monthlyTotal >= alertLevel3 {
+            return AlertInfo(message: "⚠️ 月間支出が\(alertLevel3)円を超えています！", level: 3)
+        } else if monthlyTotal >= alertLevel2 {
+            return AlertInfo(message: "⚠️ 月間支出が\(alertLevel2)円を超えています", level: 2)
+        } else if monthlyTotal >= alertLevel1 {
+            return AlertInfo(message: "月間支出が\(alertLevel1)円を超えています", level: 1)
+        }
+        
+        return nil  // アラート表示不要
+    }
+    
+    // UserDefaultsからアラート設定値を読み込む
+    func loadAlertSettings() {
+        // デフォルト値を設定
+        if UserDefaults.standard.object(forKey: "alertLevel1") == nil {
+            UserDefaults.standard.set(15000, forKey: "alertLevel1")
+            UserDefaults.standard.set(50000, forKey: "alertLevel2")
+            UserDefaults.standard.set(100000, forKey: "alertLevel3")
+        }
+        
+        // 保存値を読み込む
+        self._alertLevel1 = Published(initialValue: UserDefaults.standard.integer(forKey: "alertLevel1"))
+        self._alertLevel2 = Published(initialValue: UserDefaults.standard.integer(forKey: "alertLevel2"))
+        self._alertLevel3 = Published(initialValue: UserDefaults.standard.integer(forKey: "alertLevel3"))
+    }
 }
+
