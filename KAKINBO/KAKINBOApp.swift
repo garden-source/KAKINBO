@@ -4,6 +4,7 @@ import SwiftData
 
 @main
 struct KAKINBOApp: App {
+    // モデルコンテナの設定
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
@@ -16,11 +17,18 @@ struct KAKINBOApp: App {
             fatalError("Could not create ModelContainer: \(error)")
         }
     }()
+    
+    // アプリ全体で共有するViewModelを作成
+    @StateObject private var viewModel = KAKINBOViewModel()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(viewModel: viewModel)
+                .modelContainer(sharedModelContainer)
+                .onAppear {
+                    // ViewModelにModelContextを設定
+                    viewModel.setModelContext(ModelContext(sharedModelContainer))
+                }
         }
-        .modelContainer(sharedModelContainer)
     }
 }
